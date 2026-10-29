@@ -1,0 +1,88 @@
+spring:
+  application:
+    name: payflow-backend
+
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/payflow}
+    username: ${DATABASE_USERNAME:payflow}
+    password: ${DATABASE_PASSWORD:payflow}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+  jpa:
+    hibernate:
+      # NEVER use create/update in production — Flyway owns the schema.
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          batch_size: 20
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  data:
+    redis:
+      url: ${REDIS_URL:redis://localhost:6379}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: payflow-payment-workers
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.payflow.*
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+
+payflow:
+  jwt:
+    secret: ${JWT_SECRET:change-me-in-env-this-is-dev-only-please-override}
+    expiration-minutes: 60
+  webhook:
+    secret: ${WEBHOOK_SECRET:change-me-in-env-this-is-dev-only-please-override}
+  ratelimit:
+    requests-per-minute: 100
+  retry:
+    max-attempts: 4
+    initial-backoff-seconds: 1
+  kafka:
+    topics:
+      payment-created: payment.created
+      payment-processing: payment.processing
+      payment-completed: payment.completed
+      payment-failed: payment.failed
+      payment-refund: payment.refund
+      webhook-events: webhook.events
+      payment-dlq: payment.dlq
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  endpoint:
+    health:
+      show-details: never
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - [correlationId=%X{correlationId}] %msg%n"
